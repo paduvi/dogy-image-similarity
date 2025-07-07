@@ -1,0 +1,15 @@
+# pytorch
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch
+torchvision
+torchaudio
+
+# stuff
+tqdm~=4.67.1
+numpy~=2.3.1
+matplotlib~=3.10.3
+python-dotenv~=1.1.1
+
+# video
+opencv-python~=4.11.0.86
+moviepy~=2.2.1
