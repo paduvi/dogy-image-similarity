@@ -1,17 +1,16 @@
 import os
 import time
-import tkinter as tk
-from tkinter import filedialog
-
-import cv2
-import numpy as np
 import torch
 from torchvision.models import resnet18
+import cv2
+import numpy as np
 
 from util import extract_features_batch, extract_frames_with_progress, cut_video
 
 
 def select_files():
+    import tkinter as tk
+    from tkinter import filedialog
     """
     Opens a file dialog, allows multiple file selection,
     and returns a list of selected file paths.
@@ -82,10 +81,7 @@ def find_sample_end_moment(similarity_matrix, timestamps, threshold=0.9, min_hig
     return None
 
 
-# Replace the existing steps 5-6 with this new implementation:
-def process_file(input_path):
-    file_name = os.path.basename(input_path)
-
+def extract_sample_time(input_path, query_image, model):
     # 1. Trích frame & timestamps
     start = time.time()
     frames, timestamps, fps = extract_frames_with_progress(input_path, frame_interval=30)
@@ -101,7 +97,6 @@ def process_file(input_path):
 
     # 3. Trích đặc trưng ảnh mẫu
     start = time.time()
-    query_image = "sample.png"
     query_features = extract_features_batch([cv2.imread(query_image)], model=model)  # shape: (1, D)
     end = time.time()
     print(f"🕒 [3] Trích đặc trưng ảnh mẫu: {end - start:.2f} giây")
@@ -118,14 +113,23 @@ def process_file(input_path):
     end = time.time()
     print(f"🕒 [5] Tìm thời điểm kết thúc mẫu: {end - start:.2f} giây")
 
-    if result is None:
-        print("❌ Không tìm thấy thời điểm kết thúc mẫu phù hợp")
-        return
-
     chosen_idx, chosen_time = result
     chosen_sim = similarity_matrix[chosen_idx, 0]
 
     print(f"✅ Frame được chọn: {chosen_idx:03d} @ {chosen_time:.2f}s (similarity: {chosen_sim:.4f})")
+
+    return chosen_time
+
+
+# Replace the existing steps 5-6 with this new implementation:
+def process_file(input_path, model):
+    file_name = os.path.basename(input_path)
+    query_image = "sample.png"
+
+    chosen_time = extract_sample_time(input_path, query_image, model)
+    if chosen_time is None:
+        print("❌ Không tìm thấy thời điểm kết thúc mẫu phù hợp")
+        return
 
     # 6. Cắt video tính từ thời điểm được chọn
     start = time.time()
@@ -138,15 +142,16 @@ def process_file(input_path):
 if __name__ == '__main__':
     print(f"PyTorch version: {torch.__version__}")
     print(f"CUDA available: {torch.cuda.is_available()}")
-    print(f"CUDA version: {torch.version.cuda}")
-    print(f"Number of GPUs: {torch.cuda.device_count()}")
+    if torch.cuda.is_available():
+        print(f"CUDA version: {torch.version.cuda}")
+        print(f"Number of GPUs: {torch.cuda.device_count()}")
 
-    # --- Chuẩn bị mô hình ---
+    # --- Prepare model ---
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = resnet18(weights='DEFAULT')
-    model.fc = torch.nn.Identity()
-    model.to(device)
-    model.eval()
+    extract_model = resnet18(weights='DEFAULT')
+    extract_model.fc = torch.nn.Identity()
+    extract_model.to(device)
+    extract_model.eval()
 
     print("Starting file selection...")
     selected_files = select_files()
@@ -155,6 +160,6 @@ if __name__ == '__main__':
         print(f"\n{len(selected_files)} file(s) selected:")
         for i, file_path in enumerate(selected_files):
             print(f"\n+ {file_path}")
-            process_file(file_path)
+            process_file(file_path, extract_model)
     else:
         print("No files were selected.")
