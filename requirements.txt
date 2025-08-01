@@ -1,7 +1,10 @@
+--extra-index-url https://download.pytorch.org/whl/cu124
 # pytorch
-torch
-torchvision
-torchaudio
+torch==2.5.1
+torchvision==0.20.1
+torchaudio==2.5.1
+onnx==1.18.0
+onnxscript==0.3.2
 
 # stuff
 tqdm~=4.67.1
